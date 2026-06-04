@@ -1,6 +1,7 @@
 package panel
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -32,12 +33,35 @@ type DNSItem struct {
 }
 
 type Outbound struct {
-	Name     string   `json:"name"`
-	Protocol string   `json:"protocol"`
-	Address  string   `json:"address"`
-	Port     int      `json:"port"`
-	Password string   `json:"password"`
-	Rules    []string `json:"rules"`
+	Name                 string   `json:"name"`
+	Protocol             string   `json:"protocol"`
+	Address              string   `json:"address"`
+	Port                 int      `json:"port"`
+	User                 string   `json:"user"`
+	Password             string   `json:"password"`
+	UUID                 string   `json:"uuid"`
+	Cipher               string   `json:"cipher"`
+	Security             string   `json:"security"`
+	SNI                  string   `json:"sni"`
+	AllowInsecure        bool     `json:"allow_insecure"`
+	Fingerprint          string   `json:"fingerprint"`
+	Transport            string   `json:"transport"`
+	Host                 string   `json:"host"`
+	Path                 string   `json:"path"`
+	ServiceName          string   `json:"service_name"`
+	Flow                 string   `json:"flow"`
+	UoT                  bool     `json:"uot"`
+	UoTVersion           int      `json:"uot_version"`
+	CongestionController string   `json:"congestion_controller"`
+	UDPStream            bool     `json:"udp_stream"`
+	ReduceRTT            bool     `json:"reduce_rtt"`
+	Heartbeat            int      `json:"heartbeat"`
+	RealityPublicKey     string   `json:"reality_public_key"`
+	RealityShortID       string   `json:"reality_short_id"`
+	SpiderX              string   `json:"spider_x"`
+	Settings             string   `json:"settings"`
+	StreamSettings       string   `json:"stream_settings"`
+	Rules                []string `json:"rules"`
 }
 
 type Protocol struct {
@@ -89,11 +113,12 @@ type Protocol struct {
 	CertDNSEnv              string `json:"cert_dns_env"`
 }
 
-func GetServerConfig(c *ClientV2) (*ServerConfigResponse, error) {
+func GetServerConfig(ctx context.Context, c *ClientV2) (*ServerConfigResponse, error) {
 	client := c.Client
 	path := fmt.Sprintf("/v2/server/%d", c.ServerId)
 	r, err := client.
 		R().
+		SetContext(ctx).
 		SetHeader("If-None-Match", c.ServerConfigEtag).
 		ForceContentType("application/json").
 		Get(path)
@@ -102,7 +127,7 @@ func GetServerConfig(c *ClientV2) (*ServerConfigResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("访问 %s 失败: %v", client.BaseURL+path, err.Error())
 	}
-	
+
 	// 检查 HTTP 状态码
 	if r.StatusCode() == 304 {
 		return nil, nil
@@ -111,7 +136,7 @@ func GetServerConfig(c *ClientV2) (*ServerConfigResponse, error) {
 		body := r.Body()
 		return nil, fmt.Errorf("访问 %s 失败: %s", client.BaseURL+path, string(body))
 	}
-	
+
 	// 只有在成功响应时才检查 hash
 	hash := sha256.Sum256(r.Body())
 	newBodyHash := hex.EncodeToString(hash[:])

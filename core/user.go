@@ -16,7 +16,7 @@ import (
 	"github.com/xtls/xray-core/infra/conf"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/anytls"
-	"github.com/xtls/xray-core/proxy/hysteria2"
+	hyaccount "github.com/xtls/xray-core/proxy/hysteria/account"
 	"github.com/xtls/xray-core/proxy/shadowsocks"
 	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
 	"github.com/xtls/xray-core/proxy/trojan"
@@ -83,7 +83,7 @@ func (vc *XrayCore) GetUserTrafficSlice(tag string, mintraffic int) ([]panel.Use
 			traffic := value.(*counter.TrafficStorage)
 			up := traffic.UpCounter.Load()
 			down := traffic.DownCounter.Load()
-			if up+down > int64(mintraffic*1000) {
+			if up+down > int64(mintraffic) {
 				traffic.UpCounter.Store(0)
 				traffic.DownCounter.Store(0)
 				if vc.users.uidMap[email] == 0 {
@@ -276,8 +276,8 @@ func buildHysteria2Users(tag string, userInfo []panel.UserInfo) (users []*protoc
 }
 
 func buildHysteria2User(tag string, userInfo *panel.UserInfo) (user *protocol.User) {
-	hysteria2Account := &hysteria2.Account{
-		Password: userInfo.Uuid,
+	hysteria2Account := &hyaccount.Account{
+		Auth: userInfo.Uuid,
 	}
 	return &protocol.User{
 		Level:   0,
