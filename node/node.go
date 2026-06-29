@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/perfect-panel/ppanel-node/api/panel"
+	"github.com/perfect-panel/ppanel-node/common/logx"
 	"github.com/perfect-panel/ppanel-node/conf"
 	vCore "github.com/perfect-panel/ppanel-node/core"
 )
@@ -33,7 +34,7 @@ func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConf
 			PullInterval:           pullinterval,
 			Protocol:               &nodeconfig,
 		}
-		p, err := panel.NewClientV1(&conf.NodeApiConfig{
+		p, err := panel.NewNodeClient(&conf.NodeApiConfig{
 			APIHost:   config.ApiConfig.ApiHost,
 			NodeType:  nodeconfig.Type,
 			NodeID:    config.ApiConfig.ServerId,
@@ -66,10 +67,15 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) Close() {
+	if n == nil {
+		return
+	}
 	for _, c := range n.controllers {
-		err := c.Close()
-		if err != nil {
-			panic(err)
+		if c == nil {
+			continue
+		}
+		if err := c.Close(); err != nil {
+			logx.Node(c.tag).WithError(err).Error("关闭节点控制器失败")
 		}
 	}
 	n.controllers = nil

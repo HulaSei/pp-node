@@ -6,15 +6,15 @@ import (
 	"fmt"
 
 	"github.com/perfect-panel/ppanel-node/api/panel"
+	"github.com/perfect-panel/ppanel-node/common/logx"
 	"github.com/perfect-panel/ppanel-node/common/task"
 	vCore "github.com/perfect-panel/ppanel-node/core"
 	"github.com/perfect-panel/ppanel-node/limiter"
-	log "github.com/sirupsen/logrus"
 )
 
 type Controller struct {
 	server                  *vCore.XrayCore
-	apiClient               *panel.ClientV1
+	apiClient               *panel.NodeClient
 	tag                     string
 	limiter                 *limiter.Limiter
 	userList                []panel.UserInfo
@@ -27,7 +27,7 @@ type Controller struct {
 }
 
 // NewController return a Node controller with default parameters.
-func NewController(core *vCore.XrayCore, api *panel.ClientV1, info *panel.NodeInfo) *Controller {
+func NewController(core *vCore.XrayCore, api *panel.NodeClient, info *panel.NodeInfo) *Controller {
 	controller := &Controller{
 		server:    core,
 		apiClient: api,
@@ -54,7 +54,7 @@ func (c *Controller) Start() error {
 	c.tag = c.buildNodeTag(c.info)
 
 	// add limiter
-	l := limiter.AddLimiter(c.tag, c.userList, c.aliveMap)
+	l := c.server.LimiterManager.Add(c.tag, c.userList, c.aliveMap)
 	c.limiter = l
 
 	if c.info.Protocol.Security == "tls" {
@@ -76,30 +76,43 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return fmt.Errorf("add users error: %s", err)
 	}
-	log.WithField("节点", c.tag).Infof("已添加 %d 个新用户", added)
+	logx.Node(c.tag).WithField("user_added", added).Info("已添加新用户")
 	c.startTasks(c.info)
 	return nil
 }
 
 // Close implement the Close() function of the service interface
 func (c *Controller) Close() error {
-	limiter.DeleteLimiter(c.tag)
+	if c == nil {
+		return nil
+	}
+	if c.server != nil && c.server.LimiterManager != nil && c.tag != "" {
+		c.server.LimiterManager.Delete(c.tag)
+	}
 	if c.userListMonitorPeriodic != nil {
 		c.userListMonitorPeriodic.Close()
+		c.userListMonitorPeriodic = nil
 	}
 	if c.userReportPeriodic != nil {
 		c.userReportPeriodic.Close()
+		c.userReportPeriodic = nil
 	}
 	if c.renewCertPeriodic != nil {
 		c.renewCertPeriodic.Close()
+		c.renewCertPeriodic = nil
 	}
 	if c.onlineIpReportPeriodic != nil {
 		c.onlineIpReportPeriodic.Close()
+		c.onlineIpReportPeriodic = nil
+	}
+	if c.server == nil || c.tag == "" {
+		return nil
 	}
 	err := c.server.DelNode(c.tag)
 	if err != nil {
 		return fmt.Errorf("del node error: %s", err)
 	}
+	c.tag = ""
 	return nil
 }
 
