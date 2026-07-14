@@ -54,7 +54,7 @@ func (c *Controller) Start() error {
 	c.tag = c.buildNodeTag(c.info)
 
 	// add limiter
-	l := c.server.LimiterManager.Add(c.tag, c.userList, c.aliveMap)
+	l := c.server.LimiterManager.Add(c.tag, c.userList, c.aliveMap, c.info.Type)
 	c.limiter = l
 
 	if c.info.Protocol.Security == "tls" {

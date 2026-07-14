@@ -23,6 +23,7 @@ func NewManager() *Manager {
 }
 
 type Limiter struct {
+	NodeType      string
 	SpeedLimit    int
 	UserOnlineIP  *sync.Map      // Key: TagUUID, value: {Key: Ip, value: Uid}
 	OldUserOnline *sync.Map      // Key: Ip, value: Uid
@@ -41,8 +42,9 @@ type UserLimitInfo struct {
 	OverLimit         bool
 }
 
-func (m *Manager) Add(tag string, users []panel.UserInfo, aliveList map[int]int) *Limiter {
+func (m *Manager) Add(tag string, users []panel.UserInfo, aliveList map[int]int, nodeType string) *Limiter {
 	info := &Limiter{
+		NodeType:      nodeType,
 		UserOnlineIP:  new(sync.Map),
 		UserLimitInfo: new(sync.Map),
 		SpeedLimiter:  new(sync.Map),
@@ -111,7 +113,7 @@ func (l *Limiter) UpdateUser(tag string, added []panel.UserInfo, deleted []panel
 	}
 }
 
-func (l *Limiter) CheckLimit(taguuid string, ip string, isTcp bool, noSSUDP bool) (Bucket *ratelimit.Bucket, Reject bool) {
+func (l *Limiter) CheckLimit(taguuid string, ip string, noUDPSource bool) (Bucket *ratelimit.Bucket, Reject bool) {
 	// check if ipv4 mapped ipv6
 	ip = strings.TrimPrefix(ip, "::ffff:")
 
@@ -138,7 +140,7 @@ func (l *Limiter) CheckLimit(taguuid string, ip string, isTcp bool, noSSUDP bool
 	} else {
 		return nil, true
 	}
-	if noSSUDP {
+	if noUDPSource || l.NodeType == "hysteria" || l.NodeType == "hysteria2" || l.NodeType == "tuic" {
 		// Store online user for device limit
 		ipMap := new(sync.Map)
 		ipMap.Store(ip, uid)

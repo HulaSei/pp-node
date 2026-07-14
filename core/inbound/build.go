@@ -76,6 +76,10 @@ func Build(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerConfig, er
 					},
 				},
 			}
+			if nodeInfo.Type == "hysteria2" || nodeInfo.Type == "hysteria" {
+				alpn := coreConf.StringList{"h3"}
+				in.StreamSetting.TLSSettings.ALPN = &alpn
+			}
 		}
 	case "reality":
 		if in.StreamSetting == nil {
