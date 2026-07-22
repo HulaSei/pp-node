@@ -18,6 +18,9 @@ func ValidateServerConfig(serverconfig *panel.ServerConfigResponse) error {
 		return fmt.Errorf("protocol config is nil")
 	}
 	for i, protocol := range *serverconfig.Data.Protocols {
+		if !panel.IsSupportedProtocol(protocol.Type) {
+			continue
+		}
 		if err := validateProtocol(protocol); err != nil {
 			return fmt.Errorf("protocol[%d] %s config invalid: %w", i, protocol.Type, err)
 		}
@@ -46,8 +49,6 @@ func validateProtocol(protocol panel.Protocol) error {
 			return fmt.Errorf("cipher is required")
 		}
 	case "tuic", "hysteria", "hysteria2", "anytls":
-	default:
-		return fmt.Errorf("unsupported protocol type")
 	}
 	return nil
 }

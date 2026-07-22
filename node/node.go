@@ -15,7 +15,7 @@ type Node struct {
 
 func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConfigResponse) (*Node, error) {
 	node := &Node{
-		controllers: make([]*Controller, len(*serverconfig.Data.Protocols)),
+		controllers: make([]*Controller, 0, len(*serverconfig.Data.Protocols)),
 	}
 	pushinterval := serverconfig.Data.PushInterval
 	if pushinterval <= 0 {
@@ -25,7 +25,11 @@ func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConf
 	if pullinterval <= 0 {
 		pullinterval = 60
 	}
-	for i, nodeconfig := range *serverconfig.Data.Protocols {
+	for _, nodeconfig := range *serverconfig.Data.Protocols {
+		if !panel.IsSupportedProtocol(nodeconfig.Type) {
+			logx.Component("node").WithField("protocol", nodeconfig.Type).Warn("节点不支持该协议，已跳过对应配置")
+			continue
+		}
 		n := &panel.NodeInfo{
 			Id:                     config.ApiConfig.ServerId,
 			Type:                   nodeconfig.Type,
@@ -35,15 +39,16 @@ func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConf
 			Protocol:               &nodeconfig,
 		}
 		p, err := panel.NewNodeClient(&conf.NodeApiConfig{
-			APIHost:   config.ApiConfig.ApiHost,
-			NodeType:  nodeconfig.Type,
-			NodeID:    config.ApiConfig.ServerId,
-			SecretKey: config.ApiConfig.SecretKey,
+			APIHost:     config.ApiConfig.ApiHost,
+			NodeType:    nodeconfig.Type,
+			NodeID:      config.ApiConfig.ServerId,
+			SecretKey:   config.ApiConfig.SecretKey,
+			UseProtobuf: serverconfig.UseProtobuf,
 		})
 		if err != nil {
 			return nil, err
 		}
-		node.controllers[i] = NewController(core, p, n)
+		node.controllers = append(node.controllers, NewController(core, p, n))
 	}
 
 	return node, nil
@@ -51,6 +56,9 @@ func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConf
 
 func (n *Node) Start() error {
 	for i := range n.controllers {
+		if n.controllers[i] == nil {
+			continue
+		}
 		if !n.controllers[i].info.Protocol.Enable {
 			continue
 		}

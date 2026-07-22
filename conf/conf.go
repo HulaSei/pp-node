@@ -27,11 +27,12 @@ type ServerApiConfig struct {
 }
 
 type NodeApiConfig struct {
-	APIHost   string `mapstructure:"ApiHost"`
-	NodeID    int    `mapstructure:"NodeID"`
-	SecretKey string `mapstructure:"SecretKey"`
-	NodeType  string `mapstructure:"NodeType"`
-	Timeout   int    `mapstructure:"Timeout"`
+	APIHost     string `mapstructure:"ApiHost"`
+	NodeID      int    `mapstructure:"NodeID"`
+	SecretKey   string `mapstructure:"SecretKey"`
+	NodeType    string `mapstructure:"NodeType"`
+	Timeout     int    `mapstructure:"Timeout"`
+	UseProtobuf bool
 }
 
 func New() *Conf {

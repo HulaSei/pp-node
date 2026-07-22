@@ -6,12 +6,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	serverv1 "github.com/perfect-panel/ppanel-node/api/server/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 type ServerConfigResponse struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data *Data  `json:"data"`
+	Code        int    `json:"code"`
+	Msg         string `json:"msg"`
+	Data        *Data  `json:"data"`
+	UseProtobuf bool   `json:"-"`
 }
 
 type Data struct {
@@ -27,9 +31,10 @@ type Data struct {
 }
 
 type DNSItem struct {
-	Proto   string   `json:"proto"`
-	Address string   `json:"address"`
-	Domains []string `json:"domains"`
+	Proto      string   `json:"proto"`
+	Address    string   `json:"address"`
+	ServerName string   `json:"server_name"`
+	Domains    []string `json:"domains"`
 }
 
 type Outbound struct {
@@ -122,12 +127,11 @@ type Protocol struct {
 func GetServerConfig(ctx context.Context, c *ServerClient) (*ServerConfigResponse, error) {
 	client := c.Client
 	path := fmt.Sprintf("/v2/server/%d", c.ServerId)
-	r, err := client.
-		R().
+	request := client.R().
 		SetContext(ctx).
-		SetHeader("If-None-Match", c.ServerConfigEtag).
-		ForceContentType("application/json").
-		Get(path)
+		SetHeader("If-None-Match", c.ServerConfigEtag)
+	setProtobufResponseAccept(request)
+	r, err := request.Get(path)
 
 	// 优先检查错误,避免处理无效响应
 	if err != nil {
@@ -149,10 +153,17 @@ func GetServerConfig(ctx context.Context, c *ServerClient) (*ServerConfigRespons
 
 	body := r.Body()
 	resp := &ServerConfigResponse{}
-	err = json.Unmarshal(body, resp)
-	if err != nil {
+	if isProtobufResponse(r) {
+		message := &serverv1.QueryServerProtocolConfigResponse{}
+		if err := proto.Unmarshal(body, message); err != nil {
+			return nil, fmt.Errorf("解码 Protobuf 响应体失败: %w", err)
+		}
+		resp = serverConfigResponseFromProtobuf(message)
+	} else if err := json.Unmarshal(body, resp); err != nil {
 		return nil, fmt.Errorf("解码响应体失败: %s", err)
 	}
+	c.UseProtobuf = isProtobufResponse(r)
+	resp.UseProtobuf = c.UseProtobuf
 	if err := checkPanelEnvelope(resp.Code, resp.Msg, client.BaseURL+path); err != nil {
 		return nil, err
 	}

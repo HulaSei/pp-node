@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path"
 	"time"
+
+	serverv1 "github.com/perfect-panel/ppanel-node/api/server/v1"
 )
 
 type NodeInfo struct {
@@ -30,6 +32,9 @@ type NodeStatus struct {
 }
 
 func (c *NodeClient) ReportNodeStatus(nodeStatus *NodeStatus) (err error) {
+	if c.UseProtobuf {
+		return c.reportNodeStatusProtobuf(nodeStatus)
+	}
 	p := "/v1/server/status"
 	status := ServerPushStatusRequest{
 		Cpu:       nodeStatus.CPU,
@@ -40,6 +45,24 @@ func (c *NodeClient) ReportNodeStatus(nodeStatus *NodeStatus) (err error) {
 	r, err := c.Client.R().SetBody(status).ForceContentType("application/json").Post(p)
 	if err != nil {
 		return fmt.Errorf("访问 %s 失败: %v", path.Join(c.APIHost+p), err.Error())
+	}
+	return checkPanelResponse(r, path.Join(c.APIHost+p))
+}
+
+func (c *NodeClient) reportNodeStatusProtobuf(nodeStatus *NodeStatus) error {
+	const p = "/v1/server/status"
+	request := c.Client.R()
+	if err := setProtobufRequestBody(request, &serverv1.PushServerStatusRequest{
+		Cpu:       nodeStatus.CPU,
+		Mem:       nodeStatus.Mem,
+		Disk:      nodeStatus.Disk,
+		UpdatedAt: time.Now().UnixMilli(),
+	}); err != nil {
+		return err
+	}
+	r, err := request.Post(p)
+	if err != nil {
+		return fmt.Errorf("访问 %s 失败: %v", path.Join(c.APIHost+p), err)
 	}
 	return checkPanelResponse(r, path.Join(c.APIHost+p))
 }

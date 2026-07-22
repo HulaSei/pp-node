@@ -132,3 +132,17 @@ func TestValidateServerConfigAcceptsRealityWithSNIAsDestHost(t *testing.T) {
 		t.Fatalf("ValidateServerConfig() error = %v", err)
 	}
 }
+
+func TestValidateServerConfigSkipsUnsupportedProtocol(t *testing.T) {
+	protocols := []panel.Protocol{{
+		Type: "wireguard",
+		// This is intentionally incomplete. It must not be validated by a node
+		// release that cannot run WireGuard in the first place.
+	}}
+	err := ValidateServerConfig(&panel.ServerConfigResponse{
+		Data: &panel.Data{Protocols: &protocols},
+	})
+	if err != nil {
+		t.Fatalf("ValidateServerConfig() error = %v, want unsupported protocol skipped", err)
+	}
+}
