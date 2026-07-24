@@ -14,6 +14,8 @@ type NodeInfo struct {
 	PushInterval           int
 	PullInterval           int
 	TrafficReportThreshold int
+	ACMEEmail              string
+	ACMECADirURL           string
 	Protocol               *Protocol
 }
 

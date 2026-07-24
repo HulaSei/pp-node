@@ -93,6 +93,21 @@ func TestValidateServerConfigRejectsTLSManagedCertWithoutSNI(t *testing.T) {
 	}
 }
 
+func TestValidateServerConfigRejectsNativeTLSManagedCertWithoutSNI(t *testing.T) {
+	protocols := []panel.Protocol{{
+		Type:     "tuic",
+		Enable:   true,
+		Port:     443,
+		CertMode: "dns",
+	}}
+	err := ValidateServerConfig(&panel.ServerConfigResponse{
+		Data: &panel.Data{Protocols: &protocols},
+	})
+	if err == nil || !strings.Contains(err.Error(), "sni is required") {
+		t.Fatalf("ValidateServerConfig() error = %v, want SNI validation error", err)
+	}
+}
+
 func TestValidateServerConfigRejectsRealityWithoutPort(t *testing.T) {
 	protocols := []panel.Protocol{{
 		Type:              "vless",

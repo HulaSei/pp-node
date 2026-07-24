@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/perfect-panel/ppanel-node/api/panel"
 	"github.com/perfect-panel/ppanel-node/common/logx"
@@ -39,6 +40,17 @@ func NewController(core *vCore.XrayCore, api *panel.NodeClient, info *panel.Node
 // Start implement the Start() function of the service interface
 func (c *Controller) Start() error {
 	var err error
+	c.tag = c.buildNodeTag(c.info)
+	selfCertificate := usesTLSCertificate(c.info) && strings.TrimSpace(c.info.Protocol.CertMode) == "self"
+	if selfCertificate {
+		if err = c.requestCert(); err != nil {
+			return fmt.Errorf("request self-signed certificate: %w", err)
+		}
+		if err = c.reportSelfCertificateSHA256(); err != nil {
+			return fmt.Errorf("report self-signed certificate fingerprint: %w", err)
+		}
+	}
+
 	// Update user
 	c.userList, err = c.apiClient.GetUserList(context.Background())
 	if err != nil {
@@ -51,13 +63,11 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to get user alive list: %s", err)
 	}
-	c.tag = c.buildNodeTag(c.info)
-
 	// add limiter
 	l := c.server.LimiterManager.Add(c.tag, c.userList, c.aliveMap, c.info.Type)
 	c.limiter = l
 
-	if c.info.Protocol.Security == "tls" {
+	if usesTLSCertificate(c.info) && !selfCertificate {
 		err = c.requestCert()
 		if err != nil {
 			return fmt.Errorf("request cert error: %s", err)

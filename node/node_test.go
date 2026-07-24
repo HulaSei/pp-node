@@ -14,11 +14,18 @@ func TestNewSkipsUnsupportedProtocols(t *testing.T) {
 	}
 	node, err := New(nil, &conf.Conf{ApiConfig: conf.ServerApiConfig{
 		ApiHost: "https://panel.example", ServerId: 7,
+		ACMEEmail: "admin@example.test", ACMECADirURL: "https://acme.example.test/directory",
 	}}, &panel.ServerConfigResponse{Data: &panel.Data{Protocols: &protocols}})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
 	if len(node.controllers) != 1 || node.controllers[0].info.Type != "vless" {
 		t.Fatalf("controllers = %+v, want only supported vless protocol", node.controllers)
+	}
+	if got := node.controllers[0].info.ACMEEmail; got != "admin@example.test" {
+		t.Fatalf("ACMEEmail = %q, want admin@example.test", got)
+	}
+	if got := node.controllers[0].info.ACMECADirURL; got != "https://acme.example.test/directory" {
+		t.Fatalf("ACMECADirURL = %q, want configured ACME directory", got)
 	}
 }

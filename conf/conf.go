@@ -20,10 +20,12 @@ type LogConfig struct {
 }
 
 type ServerApiConfig struct {
-	ApiHost   string `mapstructure:"ApiHost"`
-	ServerId  int    `mapstructure:"ServerID"`
-	SecretKey string `mapstructure:"SecretKey"`
-	Timeout   int    `mapstructure:"Timeout"`
+	ApiHost      string `mapstructure:"ApiHost"`
+	ServerId     int    `mapstructure:"ServerID"`
+	SecretKey    string `mapstructure:"SecretKey"`
+	Timeout      int    `mapstructure:"Timeout"`
+	ACMEEmail    string `mapstructure:"ACMEEmail"`
+	ACMECADirURL string `mapstructure:"ACMECADirURL"`
 }
 
 type NodeApiConfig struct {

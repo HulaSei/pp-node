@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	serverv1 "github.com/perfect-panel/ppanel-node/api/server/v1"
@@ -97,7 +98,11 @@ func TestServerClientFallsBackToJSON(t *testing.T) {
 }
 
 func TestNodeClientUsesProtobuf(t *testing.T) {
+	const certificateSHA256 = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if got := request.Header.Get(CertificateSHA256Header); got != certificateSHA256 {
+			t.Fatalf("%s = %q, want %q", CertificateSHA256Header, got, certificateSHA256)
+		}
 		if got := request.Header.Get("Accept"); got != protobufContentType {
 			t.Fatalf("Accept = %q, want %q", got, protobufContentType)
 		}
@@ -151,6 +156,7 @@ func TestNodeClientUsesProtobuf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewNodeClient() error = %v", err)
 	}
+	client.SetCertificateSHA256(strings.ToUpper(certificateSHA256))
 	users, err := client.GetUserList(context.Background())
 	if err != nil || len(users) != 1 || users[0].Uuid != "user-1" {
 		t.Fatalf("GetUserList() = %+v, %v", users, err)
