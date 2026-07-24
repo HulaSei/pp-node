@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/perfect-panel/ppanel-node/api/panel"
@@ -31,25 +32,7 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 	logx.Node(c.tag).Info("用户列表监控任务已启动")
 	_ = c.userReportPeriodic.Start(false)
 	logx.Node(c.tag).Info("用户流量报告任务已启动")
-	var security string
-	switch node.Type {
-	case "vless":
-		security = node.Protocol.Security
-	case "vmess":
-		security = node.Protocol.Security
-	case "trojan":
-		security = node.Protocol.Security
-	case "shadowsocks":
-		security = ""
-	case "tuic":
-		security = "tls"
-	case "hysteria", "hysteria2":
-		security = "tls"
-	default:
-		security = ""
-	}
-
-	if security == "tls" {
+	if usesTLSCertificate(node) {
 		switch node.Protocol.CertMode {
 		case "none", "", "file", "self":
 		default:
@@ -63,6 +46,22 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 			// delay to start renewCert
 			_ = c.renewCertPeriodic.Start(true)
 		}
+	}
+}
+
+func usesTLSCertificate(node *panel.NodeInfo) bool {
+	if node == nil || node.Protocol == nil {
+		return false
+	}
+	if node.Protocol.Security == "tls" {
+		return true
+	}
+	switch node.Type {
+	case "tuic", "hysteria", "hysteria2":
+		mode := strings.TrimSpace(node.Protocol.CertMode)
+		return mode != "" && mode != "none"
+	default:
+		return false
 	}
 }
 

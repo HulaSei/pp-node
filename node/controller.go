@@ -57,7 +57,7 @@ func (c *Controller) Start() error {
 	l := c.server.LimiterManager.Add(c.tag, c.userList, c.aliveMap, c.info.Type)
 	c.limiter = l
 
-	if c.info.Protocol.Security == "tls" {
+	if usesTLSCertificate(c.info) {
 		err = c.requestCert()
 		if err != nil {
 			return fmt.Errorf("request cert error: %s", err)

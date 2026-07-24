@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/perfect-panel/ppanel-node/api/panel"
 	"github.com/xtls/xray-core/common/net"
@@ -57,31 +58,28 @@ func Build(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerConfig, er
 	}
 	in.SniffingConfig = sniffingConfig
 
-	// Set TLS or Reality settings
-	switch nodeInfo.Protocol.Security {
-	case "tls":
-		switch nodeInfo.Protocol.CertMode {
-		case "none", "":
-			break
-		default:
-			if in.StreamSetting == nil {
-				in.StreamSetting = &coreConf.StreamConfig{}
-			}
-			in.StreamSetting.Security = "tls"
-			in.StreamSetting.TLSSettings = &coreConf.TLSConfig{
-				Certs: []*coreConf.TLSCertConfig{
-					{
-						CertFile: filepath.Join("/etc/PPanel-node/", nodeInfo.Type+strconv.Itoa(nodeInfo.Id)+".cer"),
-						KeyFile:  filepath.Join("/etc/PPanel-node/", nodeInfo.Type+strconv.Itoa(nodeInfo.Id)+".key"),
-					},
-				},
-			}
-			if nodeInfo.Type == "hysteria2" || nodeInfo.Type == "hysteria" {
-				alpn := coreConf.StringList{"h3"}
-				in.StreamSetting.TLSSettings.ALPN = &alpn
-			}
+	// Set TLS or Reality settings. TUIC and Hysteria use TLS natively; panel
+	// configurations that select a certificate mode must therefore enable the
+	// same certificate path even when their generic Security field is omitted.
+	if shouldConfigureTLS(nodeInfo) {
+		if in.StreamSetting == nil {
+			in.StreamSetting = &coreConf.StreamConfig{}
 		}
-	case "reality":
+		in.StreamSetting.Security = "tls"
+		in.StreamSetting.TLSSettings = &coreConf.TLSConfig{
+			Certs: []*coreConf.TLSCertConfig{
+				{
+					CertFile: filepath.Join("/etc/PPanel-node/", nodeInfo.Type+strconv.Itoa(nodeInfo.Id)+".cer"),
+					KeyFile:  filepath.Join("/etc/PPanel-node/", nodeInfo.Type+strconv.Itoa(nodeInfo.Id)+".key"),
+				},
+			},
+		}
+		if nodeInfo.Type == "hysteria2" || nodeInfo.Type == "hysteria" {
+			alpn := coreConf.StringList{"h3"}
+			in.StreamSetting.TLSSettings.ALPN = &alpn
+		}
+	}
+	if nodeInfo.Protocol.Security == "reality" {
 		if in.StreamSetting == nil {
 			in.StreamSetting = &coreConf.StreamConfig{}
 		}
@@ -107,11 +105,28 @@ func Build(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerConfig, er
 			ShortIds:    []string{v.RealityShortID},
 			//Mldsa65Seed: v.RealityMldsa65Seed,
 		}
-	default:
-		break
 	}
 	in.Tag = tag
 	return in.Build()
+}
+
+func shouldConfigureTLS(nodeInfo *panel.NodeInfo) bool {
+	if nodeInfo == nil || nodeInfo.Protocol == nil {
+		return false
+	}
+	mode := strings.TrimSpace(nodeInfo.Protocol.CertMode)
+	if mode == "" || mode == "none" {
+		return false
+	}
+	if nodeInfo.Protocol.Security == "tls" {
+		return true
+	}
+	switch nodeInfo.Type {
+	case "tuic", "hysteria", "hysteria2":
+		return true
+	default:
+		return false
+	}
 }
 
 func buildTransportSetting(nodeInfo *panel.NodeInfo) (*coreConf.StreamConfig, error) {

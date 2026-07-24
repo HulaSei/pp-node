@@ -36,6 +36,8 @@ func New(core *vCore.XrayCore, config *conf.Conf, serverconfig *panel.ServerConf
 			TrafficReportThreshold: serverconfig.Data.TrafficReportThreshold,
 			PushInterval:           pushinterval,
 			PullInterval:           pullinterval,
+			ACMEEmail:              config.ApiConfig.ACMEEmail,
+			ACMECADirURL:           config.ApiConfig.ACMECADirURL,
 			Protocol:               &nodeconfig,
 		}
 		p, err := panel.NewNodeClient(&conf.NodeApiConfig{
