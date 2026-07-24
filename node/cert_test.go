@@ -4,7 +4,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -63,6 +65,10 @@ func TestGenerateSelfSSLCertificateCreatesUsableSecurePair(t *testing.T) {
 	}
 	if certificateUsesECDSAP256(&x509.Certificate{}) {
 		t.Fatal("certificateUsesECDSAP256() accepted a certificate without an ECDSA P-256 key")
+	}
+	sum := sha256.Sum256(cert.Raw)
+	if got, want := certificateSHA256(cert), hex.EncodeToString(sum[:]); got != want {
+		t.Fatalf("certificateSHA256() = %q, want %q", got, want)
 	}
 	certInfo, err := os.Stat(certPath)
 	if err != nil {

@@ -5,9 +5,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -56,6 +58,29 @@ func (c *Controller) enqueueReload() {
 	case c.server.ReloadCh <- struct{}{}:
 	default:
 	}
+}
+
+func (c *Controller) reportSelfCertificateSHA256() error {
+	if c == nil || c.info == nil || c.info.Protocol == nil || c.apiClient == nil {
+		return fmt.Errorf("node controller is not initialized")
+	}
+	certFile, keyFile := certificatePaths(c.info)
+	leaf, err := loadUsableCertificate(certFile, keyFile, c.info.Protocol.SNI)
+	if err != nil {
+		return fmt.Errorf("load self-signed certificate: %w", err)
+	}
+	// hex.EncodeToString is canonical lowercase; the panel must compare this
+	// fingerprint case-insensitively to accept equivalent hexadecimal forms.
+	c.apiClient.SetCertificateSHA256(certificateSHA256(leaf))
+	return nil
+}
+
+func certificateSHA256(cert *x509.Certificate) string {
+	if cert == nil {
+		return ""
+	}
+	sum := sha256.Sum256(cert.Raw)
+	return hex.EncodeToString(sum[:])
 }
 
 func (c *Controller) requestCert() error {

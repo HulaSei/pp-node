@@ -12,6 +12,8 @@ import (
 	"github.com/perfect-panel/ppanel-node/conf"
 )
 
+const CertificateSHA256Header = "X-Node-Certificate-SHA256"
+
 type NodeClient struct {
 	Client      *resty.Client
 	APIHost     string
@@ -70,6 +72,21 @@ func NewNodeClient(c *conf.NodeApiConfig) (*NodeClient, error) {
 		UserList:    &UserListBody{},
 		AliveMap:    &AliveMap{},
 	}, nil
+}
+
+// SetCertificateSHA256 attaches the normalized certificate fingerprint to all
+// subsequent requests made by this node client. The fingerprint is set only
+// for self-signed nodes by the node controller.
+func (c *NodeClient) SetCertificateSHA256(fingerprint string) {
+	if c == nil || c.Client == nil {
+		return
+	}
+	fingerprint = strings.ToLower(strings.TrimSpace(fingerprint))
+	if fingerprint == "" {
+		c.Client.Header.Del(CertificateSHA256Header)
+		return
+	}
+	c.Client.SetHeader(CertificateSHA256Header, fingerprint)
 }
 
 func NewServerClient(c *conf.ServerApiConfig) *ServerClient {
